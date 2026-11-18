@@ -1,0 +1,7 @@
+base   fmlife
+author Benoit
+email  benoit.thibaudeau64@gmail.com
+date   2026-11-17
+name   Fmlife (cycle de vie des fiches)
+desc   Statuts des fiches (brouillon, à valider, validée, expirée, obsolète...), dates de création, de revue et d'expiration, et rappels pour les fiches à revoir ou expirées (bannière, tableau de bord, e-mail).
+url    https://www.dokuwiki.org/plugins
