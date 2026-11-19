@@ -16,7 +16,7 @@ Statuts des fiches (🌱 brouillon, 🔎 à valider, ✅ validée, expirée, obs
 | --- | --- | --- |
 | `review_months` | 12 | délai avant revue d'une fiche |
 | `warn_days` | 30 | préavis avant expiration |
-| `validity_months` | 0 | durée de validité par défaut (0 = illimitée) |
+| `validity_months` | 12 | durée de validité par défaut : une fiche sans `expire` expire N mois après sa dernière revue, à défaut sa dernière modification, à défaut sa création (0 = pas d'expiration calculée) |
 | `mailto` | | adresse du rappel par e-mail |
 | `exclude_ns` | `10_pilotage:tasknotes` | espaces de noms ignorés |
 

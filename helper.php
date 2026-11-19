@@ -72,10 +72,11 @@ class helper_plugin_fmlife extends Plugin
         return (new DateTime($ref))->modify("+$months months")->format('Y-m-d');
     }
 
-    /** Date de référence de la dernière revue : revue, sinon création, sinon dernière modification */
+    /** Date de référence : dernière revue (validation), sinon dernière modification, sinon création, sinon date du fichier */
     public function reference(array $e): string
     {
         if (!empty($e['revue'])) return $e['revue'];
+        if (!empty($e['updated'])) return $e['updated'];
         if (!empty($e['created'])) return $e['created'];
         return !empty($e['mtime']) ? date('Y-m-d', (int)$e['mtime']) : '';
     }
@@ -116,6 +117,67 @@ class helper_plugin_fmlife extends Plugin
         $title = trim($display ?? $raw);
         return '<a class="fm-badge" title="' . hsc($title) . '" style="background:' . $color . ';color:#fff" href="' .
             $this->fmeta()->url('status', $value) . '">' . $icon . ' ' . hsc($text) . '</a>';
+    }
+
+    /** Date de la prochaine revue (dernière revue + review_months), '' si la fiche n'est pas suivie */
+    public function nextReview(array $e): string
+    {
+        if (($e['hdr'] ?? true) === false || $this->excluded($e)) return '';
+        if (in_array($this->key((string)($e['status'] ?? '')), self::CLOSED, true)) return '';
+        $months = (int)$this->getConf('review_months');
+        $ref = $this->reference($e);
+        if ($months <= 0 || $ref === '') return '';
+        return (new DateTime($ref))->modify("+$months months")->format('Y-m-d');
+    }
+
+    /** Jours de retard de la revue (> 0 : dépassée), null si la fiche n'est pas suivie */
+    public function overdueDays(array $e): ?int
+    {
+        $due = $this->nextReview($e);
+        if ($due === '') return null;
+        return (int)(new DateTime($due))->diff(new DateTime('today'))->format('%r%a');
+    }
+
+    /** Tableau de pilotage par responsable : fiches par statut, revues dépassées, expirées */
+    public function ownersTable(): string
+    {
+        $fm = $this->fmeta();
+        $none = $this->getLang('own_none');
+        $rows = [];
+        foreach ($fm->query() as $e) {
+            if (!$e['hdr'] || $this->excluded($e)) continue;
+            $f = array_change_key_case($e['fields'], CASE_LOWER);
+            if (mb_strtolower(trim((string)($f['nature'] ?? ''))) === 'accueil') continue;
+            $o = $f['owner'] ?? '';
+            $o = trim(is_array($o) ? implode(', ', $o) : (string)$o);
+            $r =& $rows[$o === '' ? $none : $o];
+            $r ??= ['total' => 0, 'validee' => 0, 'a-valider' => 0, 'brouillon' => 0, 'overdue' => 0, 'expired' => 0, 'oldest' => ''];
+            $r['total']++;
+            $k = $this->key((string)$e['status']);
+            if (in_array($k, ['validee', 'a-valider', 'brouillon'], true)) $r[$k]++;
+            if ($e['eff'] === 'expiree') $r['expired']++;
+            $d = $this->overdueDays($e);
+            if ($d !== null && $d > 0) {
+                $r['overdue']++;
+                $ref = $this->reference($e);
+                if ($r['oldest'] === '' || $ref < $r['oldest']) $r['oldest'] = $ref;
+            }
+            unset($r);
+        }
+        ksort($rows);
+        $h = '<div class="plugin_fmlife"><table class="inline"><thead><tr><th>' . hsc($this->getLang('own_owner')) . '</th>';
+        foreach (['own_total', 'own_validated', 'own_tovalidate', 'own_draft', 'own_overdue', 'own_expired', 'own_oldest'] as $l) {
+            $h .= '<th>' . hsc($this->getLang($l)) . '</th>';
+        }
+        $h .= '</tr></thead><tbody>';
+        foreach ($rows as $o => $r) {
+            $name = $o === $none ? hsc($o) : '<a href="' . $fm->url('owner', $o) . '">' . hsc($o) . '</a>';
+            $warn = static fn($n) => $n > 0 ? '<strong>' . $n . '</strong>' : '0';
+            $h .= '<tr><td>' . $name . '</td><td>' . $r['total'] . '</td><td>' . $r['validee'] . '</td><td>' .
+                $r['a-valider'] . '</td><td>' . $r['brouillon'] . '</td><td>' . $warn($r['overdue']) . '</td><td>' .
+                $warn($r['expired']) . '</td><td>' . ($r['oldest'] === '' ? '' : hsc($fm->dateLabel($r['oldest']))) . '</td></tr>';
+        }
+        return $h . '</tbody></table></div>';
     }
 
     /** Alertes d'une fiche : expirée, expire bientôt, à revoir */

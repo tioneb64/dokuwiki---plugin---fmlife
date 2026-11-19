@@ -18,3 +18,4 @@ $lang['sec_expiring'] = 'Cards expiring soon (%d)';
 $lang['sec_review'] = 'Cards to review (%d)';
 $lang['mail_subject'] = 'Wiki: cards to review or expired';
 $lang['sec_draft'] = 'Draft cards (%d)';
+$lang['need_fmeta'] = 'The "%s" plugin requires the "fmeta" plugin, which is not installed or not enabled.';
